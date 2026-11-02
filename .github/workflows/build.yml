@@ -1,0 +1,54 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Bundle the 3D engine and title font into the app (works offline)
+        run: |
+          mkdir -p app/src/main/assets/www/fonts
+          curl -fL --retry 3 -o app/src/main/assets/www/three.min.js \
+            https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
+          curl -fL --retry 3 -o app/src/main/assets/www/fonts/BlackHanSans-Regular.ttf \
+            https://raw.githubusercontent.com/google/fonts/main/ofl/blackhansans/BlackHanSans-Regular.ttf \
+            || echo "::warning::Title font download failed; the app will use the system font."
+          ls -la app/src/main/assets/www app/src/main/assets/www/fonts
+
+      - name: Build APK
+        run: gradle assembleRelease --no-daemon --stacktrace
+
+      - name: Name the APK
+        run: cp app/build/outputs/apk/release/app-release.apk ClassroomGrandPrix.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ClassroomGrandPrix
+          path: ClassroomGrandPrix.apk
+
+      - name: Publish as the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v1.0.${{ github.run_number }}" ClassroomGrandPrix.apk \
+            --title "교실 그랑프리 1.0.${{ github.run_number }}" \
+            --notes "안드로이드 기기에서 ClassroomGrandPrix.apk 를 내려받아 설치하세요." \
+            --latest

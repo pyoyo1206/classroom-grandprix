@@ -1,0 +1,8 @@
+.gradle/
+build/
+app/build/
+local.properties
+*.iml
+.idea/
+app/src/main/assets/www/three.min.js
+app/src/main/assets/www/fonts/*.ttf
